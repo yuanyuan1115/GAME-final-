@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>小朋友下樓梯冒險</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f4f8;
+            font-family: 'Comic Sans MS', cursive;
+        }
+        #gameContainer {
+            position: relative;
+            width: 400px;
+            height: 600px;
+            background-color: #404040;
+            overflow: hidden;
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        #saw {
+        position: absolute;
+        width: 100%;
+        height: 20px; /* 调整高度以匹配图片 */
+        background-image: url(https://sb.koding.school/project_assets/67acd922ca1eafbbf33c4dfc3b40fe9d.png?v=1);
+        background-size: cover; /* 确保图片覆盖整个区域 */
+        background-repeat: no-repeat;   
+        }       
+       #player {
+    position: absolute;
+    width: 70px;  /* 修改为 70px */
+    height: 70px; /* 修改为 70px */
+    background-image: url('https://i.ibb.co/gjftpXW/Pngtree-cartoon-hand-drawn-pattern-japanese-ninja-3932280.png');
+    background-size: contain;  /* 使用 contain 保持图片比例 */
+    background-repeat: no-repeat; /* 防止图片重复 */
+    transition: transform 0.1s;
+      }
+        .stair {
+        position: absolute;
+        width: 90px;
+        height: 20px;
+        background-image: url(https://sb.koding.school/project_assets/36d0dfbb1615d10e79ee697de9d86638.png?v=1);
+        background-size: cover; /* 确保图片覆盖楼梯区域 */
+        background-repeat: no-repeat;
+        border-radius: 5px; /* 可选：如果图片不需要圆角，可删除此行 */
+        }
+        #scoreBoard {
+            z-index: 99; 
+            position: absolute;
+            top: 40px; /* 修改這裡：將分數板往下移動，位於鋸齒下方 */
+            left: 10px;
+            font-size: 24px;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        #gameOver {
+            z-index: 999; 
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+        }
+        button {
+            background-color: #586e75;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #FF4757;
+        }
+        #startScreen {
+            display: block;
+        }
+        #gameOver {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="saw"></div>
+        <div id="scoreBoard">分數: 0</div>
+        <div id="player"></div>
+        <div id="gameOver">
+            <h2>遊戲結束！</h2>
+            <p>你的分數: <span id="finalScore">0</span></p>
+            <button onclick="restartGame()">再玩一次</button>
+        </div>
+    </div>
+
+<script>
+    const container = document.getElementById('gameContainer');
+    const player = document.getElementById('player');
+    const scoreBoard = document.getElementById('scoreBoard');
+    const gameOverScreen = document.getElementById('gameOver');
+    const startScreen = document.createElement('div');
+    const finalScoreElement = document.getElementById('finalScore');
+    const minContactDistance = 5; // 定義最小接觸距離
+
+    let playerX = 175;
+    let playerY = 50;
+    let playerSpeedX = 0;
+    const playerMovementSpeed = 5;
+    let velocityY = 0;
+    const gravity = 0.2;
+    let score = 0;
+    let stairs = [];
+    let gameActive = false;
+    let stairSpeed = 2;
+    const GAME_WIDTH = 400;
+    const GAME_HEIGHT = 600;
+
+    function createStartScreen() {
+        startScreen.id = 'startScreen';
+        startScreen.style.position = 'absolute';
+        startScreen.style.top = '0';
+        startScreen.style.left = '0';
+        startScreen.style.width = '100%';
+        startScreen.style.height = '100%';
+        startScreen.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+        startScreen.style.color = 'white';
+        startScreen.style.display = 'flex';
+        startScreen.style.flexDirection = 'column';
+        startScreen.style.justifyContent = 'center';
+        startScreen.style.alignItems = 'center';
+        startScreen.innerHTML = `
+            <h1>小朋友下樓梯冒險</h1>
+            <p>準備好挑戰鋸齒與樓梯的極限吧！</p>
+            <button id="startButton">開始遊戲</button>
+        `;
+        container.appendChild(startScreen);
+
+        document.getElementById('startButton').addEventListener('click', () => {
+            startScreen.style.display = 'none';
+            startGame();
+        });
+    }
+
+    function createStair() {
+        const stair = document.createElement('div');
+        stair.classList.add('stair');
+        stair.style.left = `${Math.random() * (GAME_WIDTH - 120)}px`;
+        stair.style.top = `${GAME_HEIGHT}px`;
+        container.appendChild(stair);
+        return stair;
+    }
+
+    function createSaw() {
+        const saw = document.createElement('div');
+        saw.id = 'saw';
+        saw.style.position = 'absolute';
+        saw.style.top = '0';
+        saw.style.left = '0';
+        container.appendChild(saw);
+    }
+
+    function initGame() {
+        for (let i = 0; i < 5; i++) {
+            const stair = createStair();
+            stair.style.top = `${GAME_HEIGHT - i * 120}px`;
+            stairs.push(stair);
+        }
+
+        createSaw();
+    }
+
+    function moveStairs() {
+        stairs.forEach(stair => {
+            let top = parseFloat(stair.style.top);
+            stair.style.top = `${top - stairSpeed}px`;
+
+            if (top < -20) {
+                stair.style.top = `${GAME_HEIGHT}px`;
+                stair.style.left = `${Math.random() * (GAME_WIDTH - 120)}px`;
+                updateScore();
+            }
+        });
+    }
+
+    function updateScore() {
+        score += 10;
+        scoreBoard.textContent = `分數: ${score}`;
+
+        if (score % 50 === 0) {
+            stairSpeed += 0.5;
+        }
+    }
+
+function checkCollision() {
+    const playerRect = player.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    const saw = document.getElementById('saw');
+    const sawRect = saw.getBoundingClientRect();
+
+    let isOnStair = false;
+
+    // 检查是否与锯子碰撞
+    if (
+        playerRect.top <= sawRect.bottom &&
+        playerRect.right > sawRect.left &&
+        playerRect.left < sawRect.right
+    ) {
+        gameOver();
+    }
+
+    // 遍历所有楼梯进行碰撞检测
+stairs.forEach(stair => {
+    const stairRect = stair.getBoundingClientRect();
+
+    // 確認角色是從上方掉落到梯子上，而不是直接 "吸附" 上去
+    if (
+        playerRect.bottom + velocityY >= stairRect.top && // 玩家底部到梯子頂部
+        playerRect.top + velocityY <= stairRect.top + 15 &&   // 玩家頂部到梯子底部
+        playerRect.right > stairRect.left &&              // 玩家右側超過梯子左側
+        playerRect.left < stairRect.right                 // 玩家左側未超過梯子右側
+    ) {
+        isOnStair = true;
+        velocityY = 0; // 停止下落
+        playerY = stairRect.top - containerRect.top - playerRect.height;
+        player.style.top = `${playerY}px`; // 更新人物位置
+    }
+});   
+    if (!isOnStair) {
+        velocityY += gravity;  // 继续加速下落
+        playerY += velocityY;  // 更新玩家垂直位置
+    }
+
+    // 确保角色不会掉出游戏区域
+    if (playerY > GAME_HEIGHT) {
+        gameOver();
+    }
+
+    // 更新人物位置
+    player.style.top = `${playerY}px`;
+}
+
+    function gameLoop() {
+        if (!gameActive) return;
+
+        playerX += playerSpeedX;
+        playerX = Math.max(0, Math.min(GAME_WIDTH - 50, playerX));
+        player.style.left = `${playerX}px`;
+        player.style.top = `${playerY}px`;
+
+        moveStairs();
+        checkCollision();
+
+        requestAnimationFrame(gameLoop);
+    }
+
+    function gameOver() {
+        gameActive = false;
+        gameOverScreen.style.display = 'block';
+        finalScoreElement.textContent = score;
+    }
+
+    function startGame() {
+    gameActive = true;
+    playerX = (GAME_WIDTH - 40) / 2;  // 使玩家在水平方向居中
+    playerY = (GAME_HEIGHT - 40) / 2; // 使玩家在垂直方向居中
+    score = 0;
+    stairSpeed = 3;
+    scoreBoard.textContent = '分數: 0';
+    gameOverScreen.style.display = 'none';
+    player.style.top = `${playerY}px`;
+    player.style.left = `${playerX}px`;
+    initGame();
+    gameLoop();
+
+    }
+
+    function restartGame() {
+        stairs.forEach(stair => stair.remove());
+        stairs = [];
+        playerX = (GAME_WIDTH - 40) / 2;  // 使玩家在水平方向居中
+        playerY = (GAME_HEIGHT - 40) / 2; // 使玩家在垂直方向居中
+        velocityY = 0;
+        score = 0;
+        stairSpeed = 3;
+        gameActive = true;
+        scoreBoard.textContent = '分數: 0';
+        gameOverScreen.style.display = 'none';
+        player.style.top = '50px';
+        player.style.left = '175px';
+        initGame();
+        gameLoop();
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (!gameActive) return;
+
+        switch (e.key) {
+            case 'a':
+            case 'A':
+                playerSpeedX = -playerMovementSpeed;
+                break;
+            case 'd':
+            case 'D':
+                playerSpeedX = 5;
+                break;
+        }
+    });
+
+    document.addEventListener('keyup', (e) => {
+        if (e.key === 'a' || e.key === 'A' || e.key === 'd' || e.key === 'D') {
+            playerSpeedX = 0;
+        }
+    });
+
+    createStartScreen();
+  document.addEventListener('keydown', (e) => {
+    if (!gameActive) return;
+
+    switch (e.key) {
+        case 'a':
+        case 'A':
+            playerSpeedX = -playerMovementSpeed;
+            player.style.backgroundImage = "url('https://i.ibb.co/fYbNGjT/Pngtree-cartoon-hand-drawn-pattern-japanese-ninja-3932279.png')";
+            break;
+        case 'd':
+        case 'D':
+            playerSpeedX = 5;
+            player.style.backgroundImage = "url('https://i.ibb.co/Q6J8Q6s/Pngtree-cartoon-hand-drawn-pattern-japanese-ninja-3932279.png')";
+            break;
+    }
+});
+
+document.addEventListener('keyup', (e) => {
+    if (e.key === 'a' || e.key === 'A' || e.key === 'd' || e.key === 'D') {
+        playerSpeedX = 0;
+        // 恢復為原來的圖片
+        player.style.backgroundImage = "url('https://i.ibb.co/gjftpXW/Pngtree-cartoon-hand-drawn-pattern-japanese-ninja-3932280.png')";
+    }
+});
+
+</script>
+
+</body>
+</html>

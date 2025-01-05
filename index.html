@@ -116,11 +116,11 @@
     let playerSpeedX = 0;
     const playerMovementSpeed = 5;
     let velocityY = 0;
-    const gravity = 0.2;
+    const gravity = 0.05;
     let score = 0;
     let stairs = [];
     let gameActive = false;
-    let stairSpeed = 2;
+    let stairSpeed = 1;
     const GAME_WIDTH = 400;
     const GAME_HEIGHT = 600;
 
@@ -195,8 +195,8 @@
         score += 10;
         scoreBoard.textContent = `分數: ${score}`;
 
-        if (score % 50 === 0) {
-            stairSpeed += 0.5;
+        if (score % 100 === 0) {
+            stairSpeed += 0.25;
         }
     }
 
